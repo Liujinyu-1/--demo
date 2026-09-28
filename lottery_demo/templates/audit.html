@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}公开审计 · {{ batch['batch_id'] }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><a class="back" href="{{ url_for('batch_detail', batch_db_id=batch['id']) }}">← 返回批次</a><h1>公开可验证性审计</h1><p>{{ batch['batch_id'] }} · 当前状态 {{ batch['status']|status_label }}</p></div>
+<span class="audit-score">{{ checks|selectattr('passed')|list|length }}/{{ checks|length }}</span></div>
+<section class="card">
+  <div class="audit-list">
+    {% for item in checks %}<div class="audit-item {{ 'pass' if item.passed else 'fail' }}">
+      <span class="check">{{ '✓' if item.passed else '×' }}</span><div><strong>{{ item.name }}</strong><p>{{ item.detail }}</p></div>
+    </div>{% endfor %}
+  </div>
+</section>
+<section class="card soft"><h2>审计边界</h2><p>本页验证密码学计算和演示账本的一致性，但不能单独证明线下资格审核真实、每人只有一个身份，也不能把本地单签名演示信标提升为真正的多机构门限随机信标。</p>
+<a class="button secondary" href="{{ url_for('audit_api', batch_db_id=batch['id']) }}">查看机器可读JSON结果</a></section>
+{% endblock %}
+

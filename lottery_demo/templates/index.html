@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}链证摇号 · 控制台{% endblock %}
+{% block content %}
+<section class="hero">
+  <div>
+    <span class="eyebrow">VERIFIABLE LOTTERY PROTOTYPE</span>
+    <h1>先固定名单，再产生随机数。</h1>
+    <p>用SM3数据承诺保护隐私，用默克尔树冻结名单，用哈希链账本保存证据，再通过带签名随机信标生成可复算的摇号结果。</p>
+  </div>
+  <div class="ledger-state {{ 'ok' if ledger_ok else 'bad' }}">
+    <span class="pulse"></span><strong>演示账本 {{ '正常' if ledger_ok else '异常' }}</strong>
+    <small>{{ ledger_detail }}</small>
+    <a class="link" href="{{ url_for('chain_explorer') }}">查看完整区块链 →</a>
+  </div>
+</section>
+
+<div class="grid two">
+  <section class="card">
+    <div class="card-head"><div><span class="step">新建</span><h2>创建摇号批次</h2></div></div>
+    <form method="post" action="{{ url_for('create_batch_route') }}" class="form-grid">
+      <label>批次编号<input name="batch_id" required placeholder="HOUSE-2026-HZ-001"></label>
+      <label>项目名称<input name="title" required placeholder="2026年第一批购房摇号"></label>
+      <label>中签人数<input name="winner_count" type="number" min="1" value="2" required></label>
+      <label>预定信标轮次<input name="beacon_round" type="number" min="1" value="1001" required></label>
+      <button class="button primary full" type="submit">创建批次并固化规则</button>
+    </form>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><div><span class="step">批次</span><h2>已有摇号项目</h2></div></div>
+    {% if batches %}
+      <div class="batch-list">
+      {% for batch in batches %}
+        <a class="batch-row" href="{{ url_for('batch_detail', batch_db_id=batch['id']) }}">
+          <div><strong>{{ batch['title'] }}</strong><small>{{ batch['batch_id'] }}</small></div>
+          <span class="badge status-{{ batch['status']|lower }}">{{ batch['status']|status_label }}</span>
+        </a>
+      {% endfor %}
+      </div>
+    {% else %}<div class="empty">还没有批次。创建一个批次即可开始演示。</div>{% endif %}
+  </section>
+</div>
+
+<section class="card" id="about">
+  <div class="card-head"><div><span class="step">流程</span><h2>系统如何保证可验证</h2></div></div>
+  <div class="flow">
+    <div><b>01</b><strong>数据承诺</strong><small>真实资料不上公开账本</small></div>
+    <i>→</i><div><b>02</b><strong>名单冻结</strong><small>默克尔根锁定完整名单</small></div>
+    <i>→</i><div><b>03</b><strong>未来随机</strong><small>冻结后才产生随机信标</small></div>
+    <i>→</i><div><b>04</b><strong>公开复算</strong><small>每个编号独立计算分值</small></div>
+  </div>
+</section>
+{% endblock %}

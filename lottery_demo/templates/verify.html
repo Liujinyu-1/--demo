@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}参与者验证 · {{ person['lottery_no'] }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><a class="back" href="{{ url_for('batch_detail', batch_db_id=batch['id']) }}">← 返回批次</a><h1>参与者独立验证</h1><p class="mono">{{ person['lottery_no'] }}</p></div><span class="badge large {{ 'participant-approved' if proof_ok else 'participant-rejected' }}">{{ '证明有效' if proof_ok else '证明失败' }}</span></div>
+<div class="grid two">
+  <section class="card"><div class="card-head"><div><span class="step">1</span><h2>数据承诺</h2></div></div>
+    <p>使用原始报名数据和回执盐值重新计算：</p><code class="hash-block">{{ recomputed_commitment }}</code>
+    <p class="result {{ 'good' if recomputed_commitment==person['commitment'] else 'bad' }}">{{ '✓ 与链上承诺一致' if recomputed_commitment==person['commitment'] else '× 与链上承诺不一致' }}</p>
+  </section>
+  <section class="card"><div class="card-head"><div><span class="step">2</span><h2>成员证明</h2></div></div>
+    <p>从本人叶子沿默克尔路径逐层计算，共 {{ proof|length }} 个相邻节点：</p>
+    <div class="proof-list">{% for step in proof %}<div><b>{{ loop.index }}</b><span>{{ '左侧' if step.side=='left' else '右侧' }}</span><code>{{ step.hash|short_hash }}</code></div>{% endfor %}</div>
+    <p class="result {{ 'good' if proof_ok else 'bad' }}">{{ '✓ 最终得到冻结树根' if proof_ok else '× 无法得到冻结树根' }}</p>
+  </section>
+</div>
+<section class="card"><div class="card-head"><div><span class="step">3</span><h2>随机分值与结果</h2></div></div>
+  {% if recomputed_score %}<div class="compare"><div><small>公开分值</small><code>{{ person['score'] or '尚未执行摇号' }}</code></div><div><small>本地复算</small><code>{{ recomputed_score }}</code></div></div>
+  {% if person['rank'] %}<p class="result good">✓ 分值一致 · 排名第 {{ person['rank'] }} · {{ '中签' if person['is_winner'] else '未中签' }}</p>{% else %}<p class="result">随机种子已产生，尚未执行排序。</p>{% endif %}
+  {% else %}<div class="empty">随机信标尚未产生，因此暂时无法计算个人分值。</div>{% endif %}
+</section>
+{% endblock %}
+

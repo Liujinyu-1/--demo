@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}{{ batch['title'] }} · 链证摇号{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><a class="back" href="{{ url_for('index') }}">← 返回批次列表</a><h1>{{ batch['title'] }}</h1><p>{{ batch['batch_id'] }}</p></div>
+  <span class="badge large status-{{ batch['status']|lower }}">{{ batch['status']|status_label }}</span>
+</div>
+
+<section class="timeline">
+  {% set stages = [('REGISTRATION','报名'),('CLOSED','截止'),('FROZEN','冻结'),('RANDOM_READY','随机数'),('DRAWN','结果'),('AUDITED','审计')] %}
+  {% set values = ['REGISTRATION','CLOSED','FROZEN','RANDOM_READY','DRAWN','AUDITED'] %}
+  {% set current = values.index(batch['status']) if batch['status'] in values else 0 %}
+  {% for code,label in stages %}<div class="{{ 'done' if loop.index0 <= current else '' }}"><span>{{ loop.index }}</span><small>{{ label }}</small></div>{% endfor %}
+</section>
+
+<div class="metrics">
+  <div><small>中签名额</small><strong>{{ batch['winner_count'] }}</strong></div>
+  <div><small>预定信标轮次</small><strong>#{{ batch['beacon_round'] }}</strong></div>
+  <div><small>规则哈希</small><strong class="mono">{{ batch['rule_hash']|short_hash }}</strong></div>
+  <div><small>默克尔树根</small><strong class="mono">{{ batch['merkle_root']|short_hash }}</strong></div>
+</div>
+
+{% if batch['status'] == 'REGISTRATION' %}
+<section class="card accent-card">
+  <div class="card-head"><div><span class="step">报名</span><h2>提交参与者资料</h2><p>原型将真实资料存入本地SQLite，仅把带随机盐的SM3承诺写入演示账本。</p></div></div>
+  <form method="post" action="{{ url_for('register', batch_db_id=batch['id']) }}" class="form-grid three">
+    <label>姓名<input name="name" required placeholder="张三"></label>
+    <label>证件号<input name="id_number" required placeholder="330100200001011234"></label>
+    <label>联系方式<input name="contact" required placeholder="13800000000"></label>
+    <button class="button primary full" type="submit">提交报名并生成回执</button>
+  </form>
+</section>
+{% endif %}
+
+<div class="grid main-side">
+  <section class="card">
+    <div class="card-head"><div><span class="step">名单</span><h2>参与者与排名</h2></div><span class="count">{{ people|length }} 条记录</span></div>
+    {% if people %}
+    <div class="table-wrap"><table>
+      <thead><tr><th>编号</th><th>参与者</th><th>审核</th><th>排名</th><th>结果</th><th>操作</th></tr></thead>
+      <tbody>{% for p in people %}<tr>
+        <td class="mono small">{{ p['lottery_no'] }}</td><td>{{ p['name']|mask_name }}</td>
+        <td><span class="badge mini participant-{{ p['status']|lower }}">{{ p['status'] }}</span></td>
+        <td>{{ p['rank'] or '-' }}</td><td>{% if p['is_winner'] %}<span class="winner">中签</span>{% elif p['rank'] %}未中签{% else %}-{% endif %}</td>
+        <td class="actions">
+          {% if p['status']=='PENDING' and batch['status'] in ['REGISTRATION','CLOSED'] %}
+          <form method="post" action="{{ url_for('review_participant', participant_id=p['id'], decision='approve') }}"><button class="link ok" type="submit">通过</button></form>
+          <form method="post" action="{{ url_for('review_participant', participant_id=p['id'], decision='reject') }}"><button class="link danger" type="submit">拒绝</button></form>
+          {% endif %}
+          <a class="link" href="{{ url_for('receipt', participant_id=p['id']) }}">回执</a>
+          {% if batch['merkle_root'] and p['status']=='APPROVED' %}<a class="link" href="{{ url_for('verify_participant', batch_db_id=batch['id'], lottery_no=p['lottery_no']) }}">验证</a>{% endif %}
+        </td>
+      </tr>{% endfor %}</tbody>
+    </table></div>
+    {% else %}<div class="empty">当前还没有报名记录。</div>{% endif %}
+  </section>
+
+  <aside class="card controls">
+    <div class="card-head"><div><span class="step">控制</span><h2>推进流程</h2></div></div>
+    {% if batch['status']=='REGISTRATION' %}
+      <p>关闭报名后不能再添加参与者，但仍可处理截止前的待审核记录。</p>
+      <form method="post" action="{{ url_for('close_batch', batch_db_id=batch['id']) }}"><button class="button warning" type="submit">1. 关闭报名</button></form>
+    {% elif batch['status']=='CLOSED' %}
+      <p>待审核记录清零后，按摇号编号排序，构造默克尔树并冻结最终名单。</p>
+      <form method="post" action="{{ url_for('freeze_batch', batch_db_id=batch['id']) }}"><button class="button warning" type="submit">2. 冻结名单</button></form>
+    {% elif batch['status']=='FROZEN' %}
+      <p>名单已经固定。现在才允许产生预定轮次的随机信标。</p>
+      <form method="post" action="{{ url_for('emit_beacon', batch_db_id=batch['id']) }}"><button class="button warning" type="submit">3. 产生演示信标</button></form>
+    {% elif batch['status']=='RANDOM_READY' %}
+      <p>信标签名验证通过。将为每个唯一编号独立计算SM3分值并排序。</p>
+      <form method="post" action="{{ url_for('draw', batch_db_id=batch['id']) }}"><button class="button warning" type="submit">4. 执行摇号</button></form>
+    {% elif batch['status']=='DRAWN' %}
+      <p>摇号已经完成。先公开复算全部证据，再将审计报告摘要封存为最后一个区块。</p>
+      <a class="button primary" href="{{ url_for('audit_page', batch_db_id=batch['id']) }}">查看公开审计</a>
+      <form method="post" action="{{ url_for('seal_audit', batch_db_id=batch['id']) }}"><button class="button warning" type="submit">5. 生成审计区块</button></form>
+    {% elif batch['status']=='AUDITED' %}
+      <p>规则、名单、随机信标、结果和审计报告已经形成完整的多区块证据链。</p>
+      <a class="button primary" href="{{ url_for('audit_page', batch_db_id=batch['id']) }}">查看最终审计</a>
+    {% endif %}
+    {% if batch['manifest_hash'] %}<a class="button secondary" href="{{ url_for('download_manifest', batch_db_id=batch['id']) }}">下载脱敏名单</a>{% endif %}
+    <a class="button secondary" href="{{ url_for('audit_page', batch_db_id=batch['id']) }}">运行当前阶段审计</a>
+    <div class="notice"><strong>演示信标说明</strong><span>本地Ed25519签名只用于离线演示真实性与防篡改，不具备多机构门限信标的抗单点操纵能力。</span></div>
+  </aside>
+</div>
+
+<section class="card">
+  <div class="card-head"><div><span class="step">多区块链</span><h2>本批次证据记录</h2><p>每个区块同时连接全局前序区块和本批次前序区块。</p></div><a class="button secondary" href="{{ url_for('chain_explorer') }}">打开区块浏览器</a></div>
+  {% if blocks %}<div class="ledger-list">{% for block in blocks %}<div><b>#{{ block['height'] }}</b><span>{{ block['stage'] }} / {{ block['tx_type'] }}</span><code title="当前区块哈希">H={{ block['block_hash']|short_hash }}</code><code title="本批次前序哈希">业务前序={{ block['business_previous_hash']|short_hash }}</code><small>{{ block['timestamp'] }}</small></div>{% endfor %}</div>{% else %}<div class="empty">暂无记录。</div>{% endif %}
+</section>
+{% endblock %}

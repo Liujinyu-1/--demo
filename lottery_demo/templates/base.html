@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}链证摇号{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="{{ url_for('index') }}">
+      <span class="brand-mark">链</span>
+      <span><strong>链证摇号</strong><small>公平可验证随机摇号原型</small></span>
+    </a>
+    <nav><a href="{{ url_for('index') }}">批次管理</a><a href="{{ url_for('chain_explorer') }}">区块浏览器</a><a href="{{ url_for('index') }}#about">技术说明</a></nav>
+  </header>
+  <main class="page">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}<div class="flash {{ category }}">{{ message }}</div>{% endfor %}
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+  <footer>SM3 · 默克尔树 · 哈希链账本 · 可验证随机信标　|　教学与竞赛原型，请勿直接用于真实高价值摇号</footer>
+</body>
+</html>

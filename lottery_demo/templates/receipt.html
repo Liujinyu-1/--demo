@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}报名回执 · {{ person['lottery_no'] }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><a class="back" href="{{ url_for('batch_detail', batch_db_id=batch['id']) }}">← 返回批次</a><h1>参与者报名回执</h1><p>请妥善保存随机盐。它用于证明链上的承诺值确实对应本人的报名数据。</p></div></div>
+<section class="receipt card">
+  <div class="receipt-title"><span class="brand-mark">链</span><div><strong>LOTTERY RECEIPT</strong><small>{{ batch['title'] }}</small></div></div>
+  <dl>
+    <dt>批次编号</dt><dd>{{ batch['batch_id'] }}</dd>
+    <dt>摇号编号</dt><dd class="mono">{{ person['lottery_no'] }}</dd>
+    <dt>报名时间</dt><dd>{{ person['registered_at'] }}</dd>
+    <dt>审核状态</dt><dd>{{ person['status'] }}</dd>
+    <dt>数据承诺 Cᵢ</dt><dd class="mono wrap">{{ person['commitment'] }}</dd>
+    <dt>随机盐 saltᵢ</dt><dd class="mono wrap secret">{{ person['salt'] }}</dd>
+  </dl>
+  <div class="formula">Cᵢ = SM3("DATA-V1" ∥ batchID ∥ Encode(Dᵢ) ∥ saltᵢ)</div>
+  <a class="button primary" href="{{ url_for('receipt_json', participant_id=person['id']) }}">下载JSON回执</a>
+</section>
+{% endblock %}
+

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}多区块证据链 · 链证摇号{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><a class="back" href="{{ url_for('index') }}">← 返回控制台</a><h1>多区块摇号证据链</h1><p>全局前序哈希保证所有区块顺序，业务前序哈希保证单个摇号批次的因果顺序。</p></div>
+  <span class="badge large {{ 'status-drawn' if chain_ok else 'status-aborted' }}">{{ '验证通过' if chain_ok else '验证失败' }}</span>
+</div>
+
+<section class="card">
+  <div class="card-head"><div><span class="step">整链验证</span><h2>{{ chain_detail }}</h2></div><a class="button secondary" href="{{ url_for('chain_api') }}">下载JSON</a></div>
+  <div class="metrics">
+    <div><small>区块总数</small><strong>{{ blocks|length }}</strong></div>
+    <div><small>首区块高度</small><strong>{{ blocks[0]['height'] if blocks else '-' }}</strong></div>
+    <div><small>末区块高度</small><strong>{{ blocks[-1]['height'] if blocks else '-' }}</strong></div>
+    <div><small>哈希算法</small><strong>SM3</strong></div>
+  </div>
+</section>
+
+<section class="card">
+  <div class="card-head"><div><span class="step">区块浏览器</span><h2>从创世块到最新区块</h2></div></div>
+  {% if blocks %}
+  <div class="chain-list">
+    {% for block in blocks %}
+    <article class="chain-block">
+      <div class="chain-height">#{{ block['height'] }}</div>
+      <div class="chain-main">
+        <div class="chain-title"><strong>{{ block['stage'] }}</strong><span>{{ block['tx_type'] }}</span><small>{{ block['batch_id'] }}</small></div>
+        <dl>
+          <dt>当前区块哈希</dt><dd class="mono">{{ block['block_hash'] }}</dd>
+          <dt>全局前序哈希</dt><dd class="mono">{{ block['previous_hash'] }}</dd>
+          <dt>业务前序哈希</dt><dd class="mono">{{ block['business_previous_hash'] }}</dd>
+          <dt>区块体摘要</dt><dd class="mono">{{ block['data_hash'] or 'V1区块' }}</dd>
+          <dt>状态摘要</dt><dd class="mono">{{ block['state_hash'] or 'V1区块' }}</dd>
+        </dl>
+        <details><summary>查看区块体</summary><pre>{{ block['payload']|tojson(indent=2) }}</pre></details>
+        <small>{{ block['timestamp'] }}</small>
+      </div>
+    </article>
+    {% if not loop.last %}<div class="chain-link">↓ 当前哈希写入下一区块的 previous_hash</div>{% endif %}
+    {% endfor %}
+  </div>
+  {% else %}<div class="empty">当前没有区块。</div>{% endif %}
+</section>
+{% endblock %}
